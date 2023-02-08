@@ -1,27 +1,54 @@
-const { Tech, Matchup } = require('../models');
+const { User } = require("../models");
+const { signToken } = require("../utils/auth");
+const { AuthenticationError } = require("apollo-server-express");
 
 const resolvers = {
   Query: {
-    tech: async () => {
-      return Tech.find({});
-    },
-    matchups: async (parent, { _id }) => {
-      const params = _id ? { _id } : {};
-      return Matchup.find(params);
+    me: async (parent, args, context) => {
+      if (context.user) {
+        return await User.findOne({ _id: context.user._id });
+      }
+      throw new AuthenticationError("No user found");
     },
   },
+
   Mutation: {
-    createMatchup: async (parent, args) => {
-      const matchup = await Matchup.create(args);
-      return matchup;
+    addUser: async (parent, args) => {
+      const user = await User.create(args);
+      const token = signToken(user);
+      return { token, user };
     },
-    createVote: async (parent, { _id, techNum }) => {
-      const vote = await Matchup.findOneAndUpdate(
-        { _id },
-        { $inc: { [`tech${techNum}_votes`]: 1 } },
-        { new: true }
-      );
-      return vote;
+    login: async (parent, { email, password }) => {
+      const user = await User.findOne({ email });
+      if (!user) throw new AuthenticationError("No user found");
+
+      const isCorrectPassword = await user.isCorrectPassword(password);
+
+      if (!isCorrectPassword)
+        throw new AuthenticationError("Incorrect Password");
+
+      const token = signToken(user);
+      return { token, user };
+    },
+    saveBook: async (parent, { bookInput }, context) => {
+      if (context.user) {
+        return await User.findOneAndUpdate(
+          { _id: context.user._id },
+          { $push: { savedBooks: bookInput } },
+          { new: true }
+        );
+      }
+      throw new AuthenticationError("Need to be logged in");
+    },
+    removeBook: async (parent, { bookInput }, context) => {
+      if (context.user) {
+        return await User.findOneAndUpdate(
+          { _id: context.user._id },
+          { $pull: { savedBooks: bookInput } },
+          { new: true }
+        );
+      }
+      throw new AuthenticationError("Need to be logged in");
     },
   },
 };

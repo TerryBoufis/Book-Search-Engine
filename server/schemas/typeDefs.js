@@ -1,4 +1,4 @@
-const { gql } = require('apollo-server-express');
+const { gql } = require("apollo-server-express");
 
 const typeDefs = gql`
   type User {
@@ -22,7 +22,7 @@ const typeDefs = gql`
     token: ID!
     user: User
   }
-    
+
   input BookInput {
     authors: [String]
     description: String!
